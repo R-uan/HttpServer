@@ -10,6 +10,7 @@
 #define BUFFER_SIZE 1024
 #define BACKLOG 10
 
+void handleRequest(int client_fd, std::string &request);
 std::string readFileAsString(const std::string &filePath);
 
 int main()
@@ -81,17 +82,14 @@ int main()
 			exit(EXIT_FAILURE);
 		}
 
-		std::string pageContent = readFileAsString("./assets/index.html");
+		char buffer[BUFFER_SIZE];
+		int requestVal = read(client_fd, buffer, BUFFER_SIZE);
+		if (requestVal > 0)
+		{
+			std::string request(buffer);
+			handleRequest(client_fd, request);
+		}
 
-		std::string fullResponse;
-		fullResponse += "HTTP/1.1 200 OK\r\n";
-		fullResponse += "Content-Type: text/html\r\n";
-		fullResponse += "Content-Length: " + std::to_string(pageContent.size()) + "\r\n";
-		fullResponse += "Connection: close\r\n";
-		fullResponse += "\r\n";
-		fullResponse += pageContent;
-
-		send(client_fd, fullResponse.c_str(), fullResponse.size(), 0);
 		close(client_fd);
 	}
 
@@ -105,4 +103,47 @@ std::string readFileAsString(const std::string &filePath)
 	std::stringstream buffer;
 	buffer << file.rdbuf();
 	return buffer.str();
+}
+
+void handleRequest(int client_fd, std::string &request)
+{
+	std::string response;
+	if (request.find("GET / HTTP/1.1") != std::string::npos)
+	{
+		std::string content = readFileAsString("./assets/index.html");
+		response = "HTTP/1.1 200 OK\r\n";
+		response += "Content-Type: text/html\r\n";
+		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
+		response += "Connection: close \r\n";
+		response += "\r\n";
+		response += content;
+	}
+	else if (request.find("GET /about HTTP/1.1") != std::string::npos)
+	{
+		std::string content = readFileAsString("./assets/about.html");
+		response = "HTTP/1.1 200 OK\r\n";
+		response += "Content-Type: text/html\r\n";
+		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
+		response += "Connection: close \r\n";
+		response += "\r\n";
+		response += content;
+	}
+	else if (request.find("GET /index.css HTTP/1.1") != std::string::npos)
+	{
+		std::string content = readFileAsString("./assets/index.css");
+		response = "HTTP/1.1 200 OK\r\n";
+		response += "Content-Type: text/css\r\n";
+		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
+		response += "Connection: close \r\n";
+		response += "\r\n";
+		response += content;
+	}
+	else
+	{
+		response = "HTTP/1.1 404 Not Found\r\n";
+		response += "Connection: close\r\n";
+		response += "\r\n";
+	}
+
+	send(client_fd, response.c_str(), response.size(), 0);
 }
