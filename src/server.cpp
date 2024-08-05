@@ -143,6 +143,7 @@ void handleRequest(int client_fd, std::string &request)
 		response = "HTTP/1.1 404 Not Found\r\n";
 		response += "Connection: close\r\n";
 		response += "\r\n";
+		response += readFileAsString("./assets/not-found.html");
 	}
 
 	send(client_fd, response.c_str(), response.size(), 0);
