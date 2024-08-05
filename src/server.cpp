@@ -7,11 +7,26 @@
 #include <netinet/in.h>
 
 #define PORT 8080
-#define BUFFER_SIZE 1024
 #define BACKLOG 10
+#define BUFFER_SIZE 1024
 
+struct HttpStatusCode
+{
+	int httpCode;
+	std::string httpStatus;
+};
+
+enum HttpStatus
+{
+	OK = 200,
+	NotFound = 404,
+	InternalServerError = 500
+};
+
+HttpStatusCode getHttpStatusCode(HttpStatus status);
 void handleRequest(int client_fd, std::string &request);
 std::string readFileAsString(const std::string &filePath);
+std::string buildResponse(const std::string &content, const std::string &contentType, HttpStatus status);
 
 int main()
 {
@@ -111,32 +126,17 @@ void handleRequest(int client_fd, std::string &request)
 	if (request.find("GET / HTTP/1.1") != std::string::npos)
 	{
 		std::string content = readFileAsString("./assets/index.html");
-		response = "HTTP/1.1 200 OK\r\n";
-		response += "Content-Type: text/html\r\n";
-		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
-		response += "Connection: close \r\n";
-		response += "\r\n";
-		response += content;
+		response = buildResponse(content, "text/html", HttpStatus::OK);
 	}
 	else if (request.find("GET /about HTTP/1.1") != std::string::npos)
 	{
 		std::string content = readFileAsString("./assets/about.html");
-		response = "HTTP/1.1 200 OK\r\n";
-		response += "Content-Type: text/html\r\n";
-		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
-		response += "Connection: close \r\n";
-		response += "\r\n";
-		response += content;
+		response = buildResponse(content, "text/html", HttpStatus::OK);
 	}
 	else if (request.find("GET /index.css HTTP/1.1") != std::string::npos)
 	{
 		std::string content = readFileAsString("./assets/index.css");
-		response = "HTTP/1.1 200 OK\r\n";
-		response += "Content-Type: text/css\r\n";
-		response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
-		response += "Connection: close \r\n";
-		response += "\r\n";
-		response += content;
+		response = buildResponse(content, "text/css", HttpStatus::OK);
 	}
 	else
 	{
@@ -146,4 +146,32 @@ void handleRequest(int client_fd, std::string &request)
 	}
 
 	send(client_fd, response.c_str(), response.size(), 0);
+}
+
+std::string buildResponse(const std::string &content, const std::string &contentType, HttpStatus statusCode)
+{
+	std::string response;
+	HttpStatusCode status = getHttpStatusCode(statusCode);
+	response = "HTTP/1.1 " + std::to_string(status.httpCode) + " " + status.httpStatus + "\r\n";
+	response += "Content-Type: " + contentType + "\r\n";
+	response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
+	response += "Connection: close \r\n";
+	response += "\r\n";
+	response += content;
+	return response;
+}
+
+HttpStatusCode getHttpStatusCode(HttpStatus status)
+{
+	switch (status)
+	{
+	case OK:
+		return {200, "OK"};
+	case NotFound:
+		return {404, "Not Found"};
+	case InternalServerError:
+		return {500, "Internal Server Error"};
+	default:
+		return {0, "Unknown Status"};
+	}
 }
